@@ -1,0 +1,71 @@
+---
+title: "Assignment 6"
+output: github_document
+---
+
+load packages
+```{r}
+library(tidyverse)
+library(purrr)
+library(broom)
+```
+
+# Question 1
+
+```{r}
+bwt_df = read_csv("birthweight.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(babysex = factor(babysex),
+         frace = factor(frace),
+         malform = factor(malform),
+         mrace = factor(mrace))
+```
+
+There are a lot of covariates in this problem. Our goal is to find the smallest model that fits best. To do this, we can apply the backward elimination technique. We start by doing a multiple linear regression of birth weight against all the covariates, and then eliminate insignificant predictors according to their p-values. We want p-values less than 0.1.
+
+```{r}
+fit_all = lm(bwt ~ ., data = bwt_df)
+tidy(fit_all)
+```
+Now we can use the step function to do a backward elimination
+
+```{r}
+step(fit_all, direction = "backward")
+```
+In the end, we are left with the following covariates:
+fincome, parity, babysex, mheight, ppwt, gaweeks, smoken, delwt, mrace, blength, bhead. A total of 8 covariates are eliminated. 
+
+So our final model is:
+```{r}
+fit = lm(bwt ~ fincome + parity + babysex + mheight + ppwt + gaweeks + smoken + delwt + mrace + blength + bhead,
+         data = bwt_df)
+tidy(fit)
+```
+Now we need to do a residuals vs. fitted values plot. This plot can give us information on heteroskedasticity.
+We want to see randomly distributed points around 0. 
+
+```{r}
+res_plt = bwt_df %>% 
+  modelr::add_residuals(fit) %>% 
+  ggplot(aes(x = bwt,
+             y = resid)) +
+  geom_point() +
+  labs(title = "Redisual vs. Fitted Birthweight",
+       x = "Fitted Birthweight",
+       y = "Residuals") +
+  theme_bw()
+
+res_plt
+```
+The residuals are upward sloping. 
+
+```{r}
+fit1 = lm(bwt ~ blength + gaweeks, data = bwt_df)
+fit2 = lm(bwt ~ bhead * blength * babysex, data = bwt_df)
+summary(fit1)
+summary(fit2)
+```
+The second model is superior because it has a higher adjusted R squared. So the variation of predictors in fit2 explains more change in birthweight.  
+
+# Section 3
+
