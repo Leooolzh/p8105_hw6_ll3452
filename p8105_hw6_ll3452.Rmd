@@ -84,4 +84,25 @@ cross_val = cross_val %>%
          rmse_fit2 = map2_dbl(fit2_mod, test, ~ rmse(model = .x, data = .y)))
 ```
 
+Plot the distribution of rmse
+```{r}
+cross_val %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(everything(),
+               names_to = "model",
+               values_to = "rmse") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model,
+             y = rmse)) +
+  geom_violin() + 
+  theme_bw()
+  
+```
+The best model is the one on the left. It has the smallest RMSE distribution, so it's the most accurate prediction. 
+
+# Question 3
+
+```{r}
+
+```
 
