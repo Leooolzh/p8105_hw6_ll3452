@@ -103,6 +103,70 @@ The best model is the one on the left. It has the smallest RMSE distribution, so
 # Question 3
 
 ```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
 
+
+bstp_df = weather_df %>% 
+  bootstrap(5000, id = "strap_number")
+
+unnest_bstp = bstp_df %>% 
+  mutate(models = map(.x = strap, ~ lm(tmax ~ tmin, data = .x)),
+         results = map(models, tidy)) %>% 
+  select(strap_number, results) %>% 
+  unnest(results)
+
+# Intercept term
+unnest_plt = unnest_bstp %>% 
+  filter(term == "(Intercept)") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_density() +
+  theme_bw()
+
+unnest_plt
+
+# Beta-1 term
+unnest_plt2 = unnest_bstp %>% 
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_density() +
+  theme_bw()
+
+unnest_plt2
+
+```
+Both distributions of parameters are approximately normal. 
+
+```{r}
+bstp_df_tidy = bstp_df %>% 
+  mutate(models = map(.x = strap, ~ lm(tmax ~ tmin, data = .x)),
+         results_r = map(models, glance),
+         results_beta = map(models, tidy)) %>% 
+  select(strap_number, results_r, results_beta) %>% 
+  unnest(results_r, results_beta) %>% 
+  janitor::clean_names() %>% 
+  select(strap_number, adj_r_squared, term, estimate) %>% 
+  pivot_wider(names_from = "term",
+              values_from = "estimate") %>% 
+  janitor::clean_names() %>% 
+  mutate(beta1 = intercept,
+         beta2 = tmin,
+         log_beta = log(beta1 * beta2)) %>% 
+  select(strap_number, adj_r_squared, beta1, beta2, log_beta)
+
+quantile(pull(bstp_df_tidy, adj_r_squared), c(0.025, 0.975))
+# This gives (0.893, 0.927)
+
+quantile(pull(bstp_df_tidy, log_beta), c(0.025, 0.975))
+# This gives (1.966, 2.059)
 ```
 
